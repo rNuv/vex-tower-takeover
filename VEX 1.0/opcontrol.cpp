@@ -1,18 +1,25 @@
 #include "main.h"
 #include "variables.h"
-using namespace okapi;
+//using namespace okapi;
 
 int FRONT_LEFT = 4;
 int FRONT_RIGHT = 2;
 int BACK_LEFT = 1;
-int BACK_RIGHT = 3;
+int BACK_RIGHT = -3;
+
 int TWO_BAR = 5;
+int RIGHT_ROLLER = 6;
+int LEFT_ROLLER = 7;
+int PUSHER = 8;
 
 pros::Motor FrontRight (FRONT_RIGHT);
 pros::Motor FrontLeft (FRONT_LEFT);
 pros::Motor BackLeft (BACK_LEFT);
 pros::Motor BackRight (BACK_RIGHT);
 pros::Motor TwoBar (TWO_BAR);
+pros::Motor RightRoller (RIGHT_ROLLER);
+pros::Motor LeftRoller (LEFT_ROLLER);
+pros::Motor Pusher (PUSHER);
 
 int RightX;
 int RightY;
@@ -20,6 +27,8 @@ int LeftY;
 int LeftX;
 bool liftUpButton;
 bool liftDownButton;
+bool pushForwardButton;
+bool pullBackwardsButton;
 int thresh = 20;
 
 void opcontrol() {
@@ -37,6 +46,8 @@ void opcontrol() {
 		bool rollDownButton = controller.get_digital(DIGITAL_R2);
     bool liftUpButton = controller.get_digital(DIGITAL_L1);
     bool liftDownButton = controller.get_digital(DIGITAL_L2);
+		bool pushForwardButton = controller.get_digital(DIGITAL_UP);
+		bool pullBackwardsButton = controller.get_digital(DIGITAL_DOWN);
 
 		if((abs(RightX) > 0) || (abs(RightY) > 0) || (abs(LeftY) > 0) || (abs(LeftX) > 0)){
 			if(abs(RightX) < thresh) {
@@ -67,6 +78,7 @@ void opcontrol() {
 		drive(RightX, RightY, LeftY, LeftX);
     lift(liftUpButton, liftDownButton);
 		roll(rollUpButton, rollDownButton);
+		push(pushForwardButton, pullBackwardsButton);
 
 		pros::Task::delay(10);
 	}
