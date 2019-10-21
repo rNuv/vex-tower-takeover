@@ -4,10 +4,10 @@ int TOP_LEFT_DRIVE = 1;
 int TOP_RIGHT_DRIVE = -2;
 int BOTTOM_RIGHT_DRIVE = -3;
 int BOTTOM_LEFT_DRIVE = 4;
-int TWO_BAR = 5;
-int RIGHT_ROLLER = 6;
-int LEFT_ROLLER = 7;
-int PUSHER = 8;
+int TWO_BAR = 14;
+int RIGHT_ROLLER = 5;
+int LEFT_ROLLER = 20;
+int PUSHER = 17;
 
 Controller masterController;
 
@@ -25,6 +25,7 @@ Motor twoBar(TWO_BAR);
 Motor rightRoller(RIGHT_ROLLER);
 Motor leftRoller(LEFT_ROLLER);
 Motor pusher(PUSHER);
+
 /**
  * A callback function for LLEMU's center button.
  *
@@ -45,11 +46,11 @@ int getStrafeSpeed(ControllerButton left, ControllerButton right)
 {
 	if(left.isPressed())
 	{
-		return -100;
+		return -7;
 	}
 	else if (right.isPressed())
 	{
-		return 100;
+		return 7;
 	}
 	else
 	{
@@ -61,6 +62,8 @@ void lift(ControllerButton up, ControllerButton down)
 {
   if(up.isPressed())
   {
+		pusher.moveRelative(-100, 75);
+		pros::delay(200);
     twoBar.move_velocity(100);
   }
   else if(down.isPressed())
@@ -74,20 +77,25 @@ void lift(ControllerButton up, ControllerButton down)
 
 void roll(ControllerButton up, ControllerButton down)
 {
+	rightRoller.setGearing(AbstractMotor::gearset::red);
+	leftRoller.setGearing(AbstractMotor::gearset::red);
+
   if(up.isPressed())
   {
-    leftRoller.move_velocity(100);
-    rightRoller.move_velocity(-100);
+    leftRoller.move_velocity(600);
+    rightRoller.move_velocity(-600);
   }
   else if(down.isPressed())
   {
-    leftRoller.move_velocity(-100);
-    rightRoller.move_velocity(100);
+    leftRoller.move_velocity(-600);
+    rightRoller.move_velocity(600);
   }
   else
   {
     leftRoller.move_velocity(0);
     rightRoller.move_velocity(0);
+		rightRoller.setBrakeMode(AbstractMotor::brakeMode::hold);
+		leftRoller.setBrakeMode(AbstractMotor::brakeMode::hold);
   }
 }
 
@@ -95,11 +103,13 @@ void push(ControllerButton forward, ControllerButton backward)
 {
   if(forward.isPressed())
   {
-    pusher.move_velocity(20);
+		leftRoller.moveVelocity(-20);
+		rightRoller.moveVelocity(20);
+    pusher.move_velocity(-35);
   }
   else if(backward.isPressed())
   {
-    pusher.move_velocity(-20);
+    pusher.move_velocity(35);
   }
   else
   {
@@ -114,7 +124,7 @@ void push(ControllerButton forward, ControllerButton backward)
  */
 void initialize() {
 	pros::lcd::initialize();
-	pros::lcd::set_text(1, "Hello arnavv!");
+	pros::lcd::set_text(1, "Hello Rnuvvv9");
 
 	pros::lcd::register_btn1_cb(on_center_button);
 }
@@ -154,9 +164,18 @@ auto myChassis = ChassisControllerFactory::create(
 	 AbstractMotor::gearset::green,
 	 {4_in, 12.5_in}
 );
+auto profileController = AsyncControllerFactory::motionProfile(
+  1.0,  // Maximum linear velocity of the Chassis in m/s
+  2.0,  // Maximum linear acceleration of the Chassis in m/s/s
+  10.0, // Maximum linear jerk of the Chassis in m/s/s/s
+  myChassis // Chassis Controller
+);
 
 void autonomous() {
 	myChassis.moveDistance(24_in);
+	//profileController.generatePath({Point{0_ft, 0_ft, 0_deg}, Point{3_ft, 0_ft, 0_deg}}, "A");
+	//profileController.setTarget("A");
+	//profileController.waitUntilSettled();
 }
 
 /**
@@ -184,9 +203,8 @@ void opcontrol() {
 	{
 		strafeSpeed = getStrafeSpeed(leftStrafe, rightStrafe);
 
-		xChassis.xArcade(strafeSpeed,
-		masterController.getAnalog(ControllerAnalog::leftY),
-		masterController.getAnalog(ControllerAnalog::rightX));
+		xChassis.xArcade(strafeSpeed, masterController.getAnalog(ControllerAnalog::leftY),
+		(masterController.getAnalog(ControllerAnalog::rightX)*0.9));
 
 		lift(liftUpButton, liftDownButton);
 		roll(rollUpButton, rollDownButton);
