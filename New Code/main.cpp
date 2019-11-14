@@ -46,11 +46,11 @@ int getStrafeSpeed(ControllerButton left, ControllerButton right)
 {
 	if(left.isPressed())
 	{
-		return -7;
+		return -2;
 	}
 	else if (right.isPressed())
 	{
-		return 7;
+		return 2;
 	}
 	else
 	{
@@ -82,13 +82,13 @@ void roll(ControllerButton up, ControllerButton down)
 
   if(up.isPressed())
   {
-    leftRoller.move_velocity(600);
-    rightRoller.move_velocity(-600);
+    leftRoller.move_velocity(500);
+    rightRoller.move_velocity(-500);
   }
   else if(down.isPressed())
   {
-    leftRoller.move_velocity(-600);
-    rightRoller.move_velocity(600);
+    leftRoller.move_velocity(-500);
+    rightRoller.move_velocity(500);
   }
   else
   {
@@ -103,8 +103,8 @@ void push(ControllerButton forward, ControllerButton backward)
 {
   if(forward.isPressed())
   {
-		leftRoller.moveVelocity(-20);
-		rightRoller.moveVelocity(20);
+		leftRoller.moveVelocity(-5);
+		rightRoller.moveVelocity(5);
     pusher.move_velocity(-35);
   }
   else if(backward.isPressed())
@@ -124,7 +124,7 @@ void push(ControllerButton forward, ControllerButton backward)
  */
 void initialize() {
 	pros::lcd::initialize();
-	pros::lcd::set_text(1, "Hello Rnuvvv9");
+	pros::lcd::set_text(1, "Hello Rnuvvv10");
 
 	pros::lcd::register_btn1_cb(on_center_button);
 }
@@ -165,17 +165,22 @@ auto myChassis = ChassisControllerFactory::create(
 	 {4_in, 12.5_in}
 );
 auto profileController = AsyncControllerFactory::motionProfile(
-  1.0,  // Maximum linear velocity of the Chassis in m/s
-  2.0,  // Maximum linear acceleration of the Chassis in m/s/s
+  0.25,  // Maximum linear velocity of the Chassis in m/s
+  1.0,  // Maximum linear acceleration of the Chassis in m/s/s
   10.0, // Maximum linear jerk of the Chassis in m/s/s/s
   myChassis // Chassis Controller
 );
 
 void autonomous() {
-	myChassis.moveDistance(24_in);
-	//profileController.generatePath({Point{0_ft, 0_ft, 0_deg}, Point{3_ft, 0_ft, 0_deg}}, "A");
-	//profileController.setTarget("A");
-	//profileController.waitUntilSettled();
+	auto rollerController = AsyncControllerFactory::velIntegrated({-5, 20});
+	profileController.generatePath({Point{0_ft, 0_ft, 0_deg}, Point{3_ft, 0_ft, 0_deg}}, "A");
+	profileController.generatePath({Point{0_ft, 0_ft, 0_deg}, Point{-1 * 3_ft, 0_ft, 0_deg}}, "B");
+
+	rollerController.setTarget(500);
+	profileController.setTarget("A");
+	profileController.waitUntilSettled();
+	rollerController.setTarget(0);
+	profileController.setTarget("B");
 }
 
 /**
