@@ -4,35 +4,38 @@ const int TOP_LEFT_DRIVE = 2;
 const int TOP_RIGHT_DRIVE = -4;
 const int BOTTOM_RIGHT_DRIVE = -3;
 const int BOTTOM_LEFT_DRIVE = 1;
-
 const int TWO_BAR = 14;
-const int RIGHT_ROLLER = -11;
+const int RIGHT_ROLLER = -12;
 const int LEFT_ROLLER = 20;
 const int PUSHER = 5;
+const int IMU_PORT = 16;
+//DONT USE PORT 11
 
 const int NUM_HEIGHTS = 3;
+int goalHeight = 0;
 const int height1 = 0;
 const int height2 = -1700;
 const int height3 = -2100;
-
 const int push1 = 0;
-const int push2 = 1600;
-const int push3 = 1600;
-
-// const int heights[NUM_HEIGHTS] = {height1, height2, height3};
-// const int pushes[NUM_HEIGHTS] = {push1, push2, push3};
+const int push2 = 1650;
+const int push3 = 1650;
+const int heights[NUM_HEIGHTS] = {height1, height2, height3};
+const int pushes[NUM_HEIGHTS] = {push1, push2, push3};
 
 const int ROLLER_SPEED = 100;
-const int SLOW_ROLLER_SPEED = 50;
+const int SLOW_ROLLER_SPEED = 25;
 const int PUSHER_SPEED = 22;
 const int PUSHER_BACK_SPEED = 35;
 
+bool liftIsUp = false;
+
 Controller controller;
 
-ControllerButton runDeploymentButton(ControllerDigital::B);
-ControllerButton downHeight(ControllerDigital::Y);
-ControllerButton upHeight(ControllerDigital::X);
-ControllerButton slowRollButton(ControllerDigital::A);
+ControllerButton slowBackButton(ControllerDigital::right);
+ControllerButton slowForwardButton(ControllerDigital::left);
+ControllerButton upLift(ControllerDigital::X);
+ControllerButton downLift(ControllerDigital::B);
+ControllerButton runAutoButton(ControllerDigital::A);
 ControllerButton liftUpButton(ControllerDigital::L1);
 ControllerButton liftDownButton(ControllerDigital::L2);
 ControllerButton rollOutButton(ControllerDigital::R1);
@@ -49,15 +52,24 @@ Motor topRight(TOP_RIGHT_DRIVE);
 Motor backLeft(BOTTOM_LEFT_DRIVE);
 Motor backRight(BOTTOM_RIGHT_DRIVE);
 
+std::map<std::string, Motor> ALL_MOTORS
+{{"top_left", topLeft}, {"top_right", topRight},
+{"down_left", backLeft}, {"down_right", backRight},
+{"pusher",pusher}, {"two_bar",twoBar},
+{"rollerL",leftRoller}, {"rollerR",rightRoller}};
+
+
 auto drive = ChassisControllerBuilder()
 		.withMotors({TOP_LEFT_DRIVE, BOTTOM_LEFT_DRIVE}, {TOP_RIGHT_DRIVE, BOTTOM_RIGHT_DRIVE})
 		// .withGains(
-    //     {0.001, 0, 0.0000}, // Distance controller gains
-    //     {0.001, 0, 0.0001}, // Turn controller gains
-    //     {0.001, 0, 0.0001}  // Angle controller gains (helps drive straight)
+    //     {0.002, 0.00, 0.001}, // Distance controller gains
+    //     {0.002, 0.00, 0.001}, // Turn controller gains
+    //     {0.002, 0.00, 0.001}  // Angle controller gains (helps drive straight)
     // )
 		.withDimensions(AbstractMotor::gearset::green, {{4_in, 14_in}, 900})
 		.build();
+
+pros::Imu imu_sensor(IMU_PORT);
 
 auto rollerController = AsyncVelControllerBuilder()
 												.withMotor({RIGHT_ROLLER, LEFT_ROLLER})
@@ -71,136 +83,269 @@ auto liftController = AsyncPosControllerBuilder()
 											.withMotor(TWO_BAR)
 											.build();
 
-auto profileController = AsyncMotionProfileControllerBuilder()
-													.withLimits({0.3, 0.5, 5.0}) // tune numbers
+auto slowDrive = AsyncMotionProfileControllerBuilder()
+								.withLimits({0.1, 0.3, 5.0})
+								.withOutput(drive)
+								.buildMotionProfileController();
+
+auto medDrive = AsyncMotionProfileControllerBuilder()
+													.withLimits({0.3, 0.3, 5.0})
 											    .withOutput(drive)
 											    .buildMotionProfileController();
 
-// void liftPushRoll(ControllerButton out, ControllerButton in, ControllerButton slowRoll,
-// 	ControllerButton forward, ControllerButton backward,
-// 	ControllerButton liftUp, ControllerButton liftDown, ControllerButton up, ControllerButton down,
-// 	int goal){
-	// leftRoller.setGearing(AbstractMotor::gearset::red);
-	// rightRoller.setGearing(AbstractMotor::gearset::red);
-	// pusher.setGearing(AbstractMotor::gearset::red);
-	//
-	// if(out.isPressed())
-	// {
-	// 	leftRoller.moveVelocity(ROLLER_SPEED);
-	// 	rightRoller.moveVelocity(ROLLER_SPEED);
-	// }
-	// else if(in.isPressed())
-	// {
-	// 	leftRoller.moveVelocity(-ROLLER_SPEED);
-	// 	rightRoller.moveVelocity(-ROLLER_SPEED);
-	// }
-	// else if(slowRoll.isPressed())
-	// {
-	// 	leftRoller.moveVelocity(-SLOW_ROLLER_SPEED);
-	// 	rightRoller.moveVelocity(-SLOW_ROLLER_SPEED);
-	// }
-	// else if(forward.isPressed())
-  // {
-  //   pusher.moveVelocity(PUSHER_SPEED);
-  // }
-  // else if(backward.isPressed())
-  // {
-  //   pusher.moveVelocity(-PUSHER_BACK_SPEED);
-  // }
-	// else if(liftUp.isPressed())
-	// {
-	// 	pushController->setTarget(1350);
-	// 	pros::delay(200);
-	// 	twoBar.moveVelocity(-100);
-	// }
-	// else if(liftDown.isPressed())
-	// {
-	// 	liftController->setTarget(0);
-	// }
-  // else
-  // {
-  //  pusher.moveVelocity(0);
-	// 	twoBar.moveVelocity(0);
-	// 	leftRoller.moveVelocity(0);
-	// 	rightRoller.moveVelocity(0);
-	// 	rightRoller.setBrakeMode(AbstractMotor::brakeMode::hold);
-	// 	leftRoller.setBrakeMode(AbstractMotor::brakeMode::hold);
-	// 	twoBar.setBrakeMode(AbstractMotor::brakeMode::hold);
-	// 	pusher.setBrakeMode(AbstractMotor::brakeMode::hold);
-  // }
-// }
+auto fastDrive = AsyncMotionProfileControllerBuilder()
+													.withLimits({0.6, 0.4, 5.0})
+													.withOutput(drive)
+													.buildMotionProfileController();
+
+
 
 void initialize() {
 	pros::lcd::initialize();
 	pros::lcd::set_text(1, "Hello R_N#V11");
 
-	profileController->generatePath({
+	medDrive->generatePath({
 	  {0_ft, 0_ft, 0_deg},  // Profile starting position, this will normally be (0, 0, 0)
-	  {2.05_ft, 0_ft, 0_deg}}, // The next point in the profile, 3 feet forward
+	  {3.05_ft, 0_ft, 0_deg}}, // The next point in the profile, 3 feet forward
 	  "OutsideForward" // Profile name
 	);
 
-	profileController->generatePath({
+	fastDrive->generatePath({
 		{0_ft, 0_ft, 0_deg},  // Profile starting position, this will normally be (0, 0, 0)
-		{2.25_ft, 0_ft, 0_deg}}, // The next point in the profile, 3 feet forward
+		{2.6_ft, 0_ft, 0_deg}}, // The next point in the profile, 3 feet forward
 		"OutsideBack" // Profile name
 	);
 
-	profileController->generatePath({
+	medDrive->generatePath({
 		{0_ft, 0_ft, 0_deg},  // Profile starting position, this will normally be (0, 0, 0)
 		{1.67_ft, 0_ft, 0_deg}}, // The next point in the profile, 3 feet forward
 		"InsideForward" // Profile name
 	);
 
-	profileController->generatePath({
+	medDrive->generatePath({
 		{0_ft, 0_ft, 0_deg},  // Profile starting position, this will normally be (0, 0, 0)
 		{2.0_ft, 0_ft, 0_deg}}, // The next point in the profile, 3 feet forward
 		"InsideRight" // Profile name
 	);
 
-	profileController->generatePath({
+	medDrive->generatePath({
 		{0_ft, 0_ft, 0_deg},  // Profile starting position, this will normally be (0, 0, 0)
 		{0.9_ft, 0_ft, 0_deg}}, // The next point in the profile, 3 feet forward
 		"InsideBack" // Profile name
 	);
 
-	profileController->generatePath({
-		{0_ft, 0_ft, 0_deg},  // Profile starting position, this will normally be (0, 0, 0)
-		{0.4_ft, 0_ft, 0_deg}}, // The next point in the profile, 3 feet forward
-		"InsideForwardLittle" // Profile name
-	);
-
 }
 
-void tilterControl() {
+void pusherControl() {
+		pusher.setGearing(AbstractMotor::gearset::red);
+
     if (pushBackwardButton.isPressed() && pusher.getTargetVelocity() != 40) {
         pusher.moveVelocity(-100);
         if (pusher.getPosition() < 0) {
             pusher.tarePosition();
         }
     } else if (pushForwardButton.isPressed()) {
-        if (pusher.getPosition() < 500) {
+        if (pusher.getPosition() < 1450) {
             pusher.moveVelocity(100);
-        } else {
-            int vel = 50 + (450 + (-1 * pusher.getPosition() + 250)) * 0.1111;
-            if (vel < 10) {
-                vel = 10;
+        }
+				else if(pusher.getPosition() > 3800){
+						pusher.moveVelocity(0);
+				}else {
+						int x = pusher.getPosition();
+            int vel = (int)(((0.00003121) * x * x) - (0.1935 * x) + 315.0);
+            if (vel < 20) {
+                vel = 20;
             }
             pusher.moveVelocity(vel);
         }
     }
-    if (pushForwardButton.changedToReleased() || pushBackwardButton.changedToReleased()) {
+    if (pushForwardButton.changedToReleased() ||
+		pushBackwardButton.changedToReleased()) {
         pusher.moveVelocity(0);
+				pusher.setBrakeMode(AbstractMotor::brakeMode::hold);
     }
 }
 
+void rollerControl(){
+
+	leftRoller.setGearing(AbstractMotor::gearset::red);
+	rightRoller.setGearing(AbstractMotor::gearset::red);
+
+	if(!liftIsUp){
+		if(rollOutButton.isPressed()){
+			leftRoller.moveVelocity(-ROLLER_SPEED);
+			rightRoller.moveVelocity(-ROLLER_SPEED);
+		}
+		else if(rollInButton.isPressed()){
+			leftRoller.moveVelocity(ROLLER_SPEED);
+			rightRoller.moveVelocity(ROLLER_SPEED);
+		}
+		else{
+			leftRoller.moveVelocity(0);
+			rightRoller.moveVelocity(0);
+			leftRoller.setBrakeMode(AbstractMotor::brakeMode::hold);
+			rightRoller.setBrakeMode(AbstractMotor::brakeMode::hold);
+		}
+	}
+
+	if(liftIsUp){
+		if(rollOutButton.isPressed()){
+			leftRoller.moveVelocity(-ROLLER_SPEED);
+			rightRoller.moveVelocity(-ROLLER_SPEED);
+		}
+		else if(rollInButton.isPressed()){
+			leftRoller.moveVelocity(-SLOW_ROLLER_SPEED);
+			rightRoller.moveVelocity(-SLOW_ROLLER_SPEED);
+		}
+		else{
+			leftRoller.moveVelocity(0);
+			rightRoller.moveVelocity(0);
+			leftRoller.setBrakeMode(AbstractMotor::brakeMode::hold);
+			rightRoller.setBrakeMode(AbstractMotor::brakeMode::hold);
+		}
+	}
+}
+
+void gyroTurn(int angle){
+
+	while(imu_sensor.get_heading() <= fabs(angle)){
+		topRight.moveVelocity(-50);
+		topLeft.moveVelocity(50);
+		backLeft.moveVelocity(50);
+		backRight.moveVelocity(-50);
+	}
+	topRight.moveVelocity(0);
+	topLeft.moveVelocity(0);
+	backLeft.moveVelocity(0);
+	backRight.moveVelocity(0);
+}
+
+void twoBarControl(){
+	if(liftUpButton.changedToPressed() && goalHeight < NUM_HEIGHTS - 1){
+		goalHeight++;
+		liftController->setTarget(heights[goalHeight]);
+		pushController->setTarget(pushes[goalHeight]);
+		liftIsUp = true;
+	}
+	else if (liftDownButton.changedToPressed() && goalHeight > 0) {
+		goalHeight--;
+		if(goalHeight == 0){
+			pushController->setTarget(1800);
+			liftController->setTarget(heights[goalHeight]);
+			pushController->waitUntilSettled();
+			liftIsUp = false;
+		}
+		liftController->setTarget(heights[goalHeight]);
+		pushController->setTarget(pushes[goalHeight]);
+	}
+
+	if(upLift.isPressed()){
+		twoBar.moveVelocity(-100);
+	}
+	else if(downLift.isPressed()){
+		twoBar.moveVelocity(100);
+	}
+	else if(upLift.changedToReleased() || downLift.changedToReleased()){
+		twoBar.moveVelocity(0);
+		twoBar.setBrakeMode(AbstractMotor::brakeMode::hold);
+	}
+}
+
+void goSlow(){
+	if(slowForwardButton.isPressed()){
+		topRight.moveVelocity(30);
+		topLeft.moveVelocity(30);
+		backLeft.moveVelocity(30);
+		backRight.moveVelocity(30);
+	}
+	else if(slowBackButton.isPressed()){
+		topRight.moveVelocity(-30);
+		topLeft.moveVelocity(-30);
+		backLeft.moveVelocity(-30);
+		backRight.moveVelocity(-30);
+	}
+	else if(slowForwardButton.changedToReleased() || slowBackButton.changedToReleased()){
+		topRight.moveVelocity(0);
+		topLeft.moveVelocity(0);
+		backLeft.moveVelocity(0);
+		backRight.moveVelocity(0);
+	}
+}
 
 void disabled() {}
+
+void pidTurn(double input) {
+		double angle = input * 5.02;
+
+		imu_sensor.reset();
+
+		double TARGET = imu_sensor.get_heading() + angle;
+		double HALFWAY = imu_sensor.get_heading() + angle / 4;
+		double currentValue = imu_sensor.get_heading();
+		double currentError = TARGET - currentValue;
+		double previousError = 0;
+		double accel = true;
+
+		double kP = 1.000;
+		double kI = 0.000;
+		double kD = 5.000;
+		double kDr = 0.000;
+
+		double maxRate = 16;
+
+		while (fabs(currentError) > 10) {
+			if (angle > 0 && currentValue > HALFWAY) {
+				accel = false;
+			} else if (angle < 0 && currentValue < HALFWAY) {
+				accel = false;
+			}
+
+			double p = kP * currentError;
+			double i = kI;
+			double d = kD * (currentError - previousError);
+
+			double command = p + i + d;
+
+			if (fabs(command) > maxRate) {
+				if (command > 0) {
+					command = maxRate;
+				} else {
+					command = -maxRate;
+				}
+			}
+
+			double left = command;
+			double right = -(command);
+
+			topLeft.moveVelocity(left);
+			topRight.moveVelocity(right);
+			backLeft.moveVelocity(left);
+			backRight.moveVelocity(right);
+
+			pros::delay(20);
+
+			if (accel) {
+				if (maxRate < 150) {
+					maxRate += 10;
+				}
+			}
+
+			currentValue = imu_sensor.get_heading();
+			previousError = currentError;
+			currentError = TARGET - currentValue;
+		}
+
+		topLeft.moveVelocity(0);
+		topRight.moveVelocity(0);
+		backLeft.moveVelocity(0);
+		backRight.moveVelocity(0);
+
+}
 
 void deploy(){
 	rightRoller.moveVelocity(-600);
 	leftRoller.moveVelocity(-600);
-	pros::delay(2500);
+	pros::delay(2000);
 	rightRoller.moveVelocity(0);
 	leftRoller.moveVelocity(0);
 	pros::delay(200);
@@ -220,258 +365,151 @@ void moveBack(int speed, int time){
 
 void competition_initialize() {}
 
-void blueOut(){
-	 deploy();
-	 rightRoller.moveVelocity(600);
-	 leftRoller.moveVelocity(600);
-	 profileController->setTarget("OutsideForward");
-	 profileController->waitUntilSettled();
-	 rightRoller.moveVelocity(0);
-	 leftRoller.moveVelocity(0);
-	 drive->turnAngle(-75_deg);
-	 rightRoller.setBrakeMode(AbstractMotor::brakeMode::hold);
-	 leftRoller.setBrakeMode(AbstractMotor::brakeMode::hold);
-	 pros::delay(200);
-	 profileController->setTarget("OutsideBack");
-	 profileController->waitUntilSettled();
-	 rightRoller.moveVelocity(-10);
-	 leftRoller.moveVelocity(-10);
-	 pros::delay(1000);
-	 pushController->setTarget(2000);
-	 pros::delay(2500);
-	 pushController->setTarget(0);
-	 pros::delay(200);
+void updateTempWarning(){
+  std::string motorName = "";
+	int i = 0;
+  for(auto motor: ALL_MOTORS) {
+    int temp = motor.second.getTemperature();
+		motorName = motor.first;
+		pros::lcd::set_text(i, motorName + std::to_string(temp));
+		i++;
+  }
+}
 
-	 rightRoller.moveVelocity(-15);
-	 leftRoller.moveVelocity(-15);
-	 topRight.moveVelocity(100);
-	 topLeft.moveVelocity(-100);
-	 backLeft.moveVelocity(-100);
-	 backRight.moveVelocity(100);
-	 pros::delay(1500);
-	 topRight.moveVelocity(0);
-	 topLeft.moveVelocity(0);
-	 backLeft.moveVelocity(0);
-	 backRight.moveVelocity(0);
- }
+void stackAndBack(){
+	rightRoller.moveVelocity(-20);
+	leftRoller.moveVelocity(-20);
+	pros::delay(1000);
+	rightRoller.moveVelocity(0);
+	leftRoller.moveVelocity(0);
+	pushController->setTarget(3700);
+	pushController->waitUntilSettled();
+	pushController->setTarget(0);
+	pushController->waitUntilSettled();
+	rightRoller.moveVelocity(-100);
+	leftRoller.moveVelocity(-100);
+	moveBack(100, 1500);
+}
+
+void blueOut(){
+	deploy();
+	rightRoller.moveVelocity(600);
+	leftRoller.moveVelocity(600);
+	medDrive->setTarget("OutsideForward");
+	medDrive->waitUntilSettled();
+	rightRoller.moveVelocity(0);
+	leftRoller.moveVelocity(0);
+	drive->turnAngle(-177_deg);
+	rightRoller.setBrakeMode(AbstractMotor::brakeMode::hold);
+	leftRoller.setBrakeMode(AbstractMotor::brakeMode::hold);
+	pros::delay(200);
+	fastDrive->setTarget("OutsideBack");
+	fastDrive->waitUntilSettled();
+
+	stackAndBack();
+}
 
 void blueIn3pt(){
-	 deploy();
-	 profileController->setTarget("InsideForwardLittle"); // go forward to cube
-	 rollerController->setTarget(100); // start rolling inwards
-	 profileController->waitUntilSettled(); // wait until stopped
-	 moveBack(20, 300); //move back a little
-	 drive->turnAngle(42_deg); // turn to top right cube
-	 profileController->setTarget("InsideForward"); // get second cube
-	 profileController->waitUntilSettled();
-	 drive->turnAngle(50_deg); // turn to third cube
-	 profileController->setTarget("InsideRight"); // go to third cube
-	 profileController->waitUntilSettled();
-	 drive->turnAngle(34_deg); //turn toward goal zone
-	 profileController->setTarget("InsideBack"); // go to goal zone
-	 rollerController->setTarget(0); // stop rollers
-	 profileController->waitUntilSettled();
-
-	 rollerController->setTarget(-30);
-	 pushController->setTarget(2000);
-	 pushController->waitUntilSettled();
-	 rollerController->setTarget(0);
-	 rollerController->waitUntilSettled();
-	 rollerController->setTarget(50);
-	 moveBack(40, 700);
- }
+}
 
 void blueIn2pt(){
-	 deploy();
-	 profileController->setTarget("InsideForward"); // go forward to cube
-	 rollerController->setTarget(170); // start rolling inwards
-	 profileController->waitUntilSettled(); // wait until stopped
-	 drive->turnAngle(90_deg); // turn to right
-	 profileController->setTarget("InsideRight"); // go to third cube
-	 profileController->waitUntilSettled();
-	 drive->turnAngle(45_deg); // turn to goal zone
-	 profileController->setTarget("InsideBack"); // go to goal zone
-	 rollerController->setTarget(0); // stop rollers
-	 profileController->waitUntilSettled();
-	 rollerController->setTarget(-70);
-	 pushController->setTarget(1500);
-	 pushController->waitUntilSettled();
-	 moveBack(40, 1500);
+	deploy();
+	medDrive->setTarget("InsideForward"); // go forward to cube
+	rollerController->setTarget(170); // start rolling inwards
+	medDrive->waitUntilSettled(); // wait until stopped
+	drive->turnAngle(90_deg); // turn to right
+	medDrive->setTarget("InsideRight"); // go to third cube
+	medDrive->waitUntilSettled();
+	drive->turnAngle(45_deg); // turn to goal zone
+	medDrive->setTarget("InsideBack"); // go to goal zone
+	rollerController->setTarget(0); // stop rollers
+	medDrive->waitUntilSettled();
+	// rollerController->setTarget(-70);
+	// pushController->setTarget(1500);
+	// pushController->waitUntilSettled();
+	// moveBack(40, 1500);
+	rightRoller.moveVelocity(-600);
+	leftRoller.moveVelocity(-600);
+	pros::delay(400);
+	moveBack(50, 500);
 }
 
 void redOut(){
-	 deploy();
-	 rightRoller.moveVelocity(600);
-	 leftRoller.moveVelocity(600);
-	 profileController->setTarget("OutsideForward");
-	 profileController->waitUntilSettled();
-	 rightRoller.moveVelocity(0);
-	 leftRoller.moveVelocity(0);
-	 drive->turnAngle(75_deg);
-	 rightRoller.setBrakeMode(AbstractMotor::brakeMode::hold);
-	 leftRoller.setBrakeMode(AbstractMotor::brakeMode::hold);
-	 pros::delay(200);
-	 profileController->setTarget("OutsideBack");
-	 profileController->waitUntilSettled();
-	 rightRoller.moveVelocity(-10);
-	 leftRoller.moveVelocity(-10);
-	 pros::delay(1000);
-	 pushController->setTarget(2000);
-	 pros::delay(2500);
-	 pushController->setTarget(0);
-	 pros::delay(200);
-
-	 rightRoller.moveVelocity(-15);
-	 leftRoller.moveVelocity(-15);
-	 topRight.moveVelocity(100);
-	 topLeft.moveVelocity(-100);
-	 backLeft.moveVelocity(-100);
-	 backRight.moveVelocity(100);
-	 pros::delay(1500);
-	 topRight.moveVelocity(0);
-	 topLeft.moveVelocity(0);
-	 backLeft.moveVelocity(0);
-	 backRight.moveVelocity(0);
- }
+}
 
 void redIn2pt(){
-	 deploy();
-	 profileController->setTarget("InsideForward"); // go forward to cube
-	 rollerController->setTarget(110); // start rolling inwards
-	 profileController->waitUntilSettled(); // wait until stopped
-	 drive->turnAngle(-95_deg); // turn to right
-	 profileController->setTarget("InsideRight"); // go to third cube
-	 profileController->waitUntilSettled();
-	 drive->turnAngle(-50_deg); // turn to goal zone
-	 profileController->setTarget("InsideBack"); // go to goal zone
-	 rollerController->setTarget(0); // stop rollers
-	 profileController->waitUntilSettled();
-	 rollerController->setTarget(-70);
-	 pushController->setTarget(1500);
-	 pushController->waitUntilSettled();
-	 moveBack(40, 1500);
+	deploy();
+	medDrive->setTarget("InsideForward"); // go forward to cube
+	rollerController->setTarget(170); // start rolling inwards
+	medDrive->waitUntilSettled(); // wait until stopped
+	drive->turnAngle(-90_deg); // turn to right
+	medDrive->setTarget("InsideRight"); // go to third cube
+	medDrive->waitUntilSettled();
+	drive->turnAngle(-47_deg); // turn to goal zone
+	medDrive->setTarget("InsideBack"); // go to goal zone
+	rollerController->setTarget(0); // stop rollers
+	medDrive->waitUntilSettled();
+	// rollerController->setTarget(-70);
+	// pushController->setTarget(1500);
+	// pushController->waitUntilSettled();
+	// moveBack(40, 1500);
+	rightRoller.moveVelocity(-600);
+	leftRoller.moveVelocity(-600);
+	pros::delay(400);
+	moveBack(50, 500);
 }
 
 void redIn3pt(){
-	 deploy();
-	 profileController->setTarget("InsideForwardLittle"); // go forward to cube
-	 rollerController->setTarget(100); // start rolling inwards
-	 profileController->waitUntilSettled(); // wait until stopped
-	 moveBack(20, 300); //move back a little
-	 drive->turnAngle(-21_deg); // turn to top right cube
-	 profileController->setTarget("InsideForward"); // get second cube
-	 profileController->waitUntilSettled();
-	 drive->turnAngle(-25_deg); // turn to third cube
-	 profileController->setTarget("InsideRight"); // go to third cube
-	 profileController->waitUntilSettled();
-	 drive->turnAngle(-17_deg); //turn toward goal zone
-	 profileController->setTarget("InsideBack"); // go to goal zone
-	 rollerController->setTarget(0); // stop rollers
-	 profileController->waitUntilSettled();
+}
 
-	 rollerController->setTarget(-30);
-	 pushController->setTarget(2000);
-	 pushController->waitUntilSettled();
-	 rollerController->setTarget(0);
-	 rollerController->waitUntilSettled();
-	 rollerController->setTarget(50);
-	 moveBack(40, 700);
- }
+void onePt(){
+	 deploy();
+	 rollerController->setTarget(170); // start rolling inwards
+	 medDrive->setTarget("InsideForward"); // go forward to cube
+	 medDrive->waitUntilSettled();
+	 rollerController->setTarget(-200);
+	 pros::delay(2000);
+	 moveBack(50, 1000);
+}
+
+void progSkills(){
+	deploy();
+	rightRoller.moveVelocity(600);
+	leftRoller.moveVelocity(600);
+	medDrive->setTarget("OutsideForward");
+	medDrive->waitUntilSettled();
+	rightRoller.moveVelocity(0);
+	leftRoller.moveVelocity(0);
+	drive->turnAngle(-177_deg);
+	rightRoller.setBrakeMode(AbstractMotor::brakeMode::hold);
+	leftRoller.setBrakeMode(AbstractMotor::brakeMode::hold);
+	pros::delay(200);
+	fastDrive->setTarget("OutsideBack");
+	fastDrive->waitUntilSettled();
+
+	stackAndBack();
+}
 
 void autonomous() {
-	 blueIn2pt();
+	redIn2pt();
 }
 
 void opcontrol() {
-	leftRoller.setGearing(AbstractMotor::gearset::red);
-	rightRoller.setGearing(AbstractMotor::gearset::red);
-	pusher.setGearing(AbstractMotor::gearset::red);
-	int heights[NUM_HEIGHTS] = {height1, height2, height3};
-	int pushes[NUM_HEIGHTS] = {push1, push2, push3};
-	int goalHeight = 0;
 
 	while (true){
 
 		drive->getModel()->arcade(0.9 * controller.getAnalog(ControllerAnalog::leftY),
 		0.75 * controller.getAnalog(ControllerAnalog::rightX));
 
-		tilterControl();
+		if(runAutoButton.changedToPressed()){
+			autonomous();
+		}
 
-		// // liftPushRoll(rollOutButton, rollInButton, slowRollButton, pushForwardButton,
-		// // 	pushBackwardButton, liftUpButton, liftDownButton, upHeight, downHeight, goalHeight);
-		//
-		// if(runDeploymentButton.changedToPressed()){
-		// 	deploy();
-		// }
-		//
-		// if(rollOutButton.isPressed())
-		// {
-		// 	leftRoller.moveVelocity(ROLLER_SPEED);
-		// 	rightRoller.moveVelocity(ROLLER_SPEED);
-		// }
-		// else if(rollInButton.isPressed())
-		// {
-		// 	leftRoller.moveVelocity(-ROLLER_SPEED);
-		// 	rightRoller.moveVelocity(-ROLLER_SPEED);
-		// }
-		// else if(slowRollButton.isPressed())
-		// {
-		// 	leftRoller.moveVelocity(-SLOW_ROLLER_SPEED);
-		// 	rightRoller.moveVelocity(-SLOW_ROLLER_SPEED);
-		// }
-		// else if(pushForwardButton.isPressed())
-		// {
-		// 	pusher.moveVelocity(PUSHER_SPEED);
-		// }
-		// else if(pushBackwardButton.isPressed())
-		// {
-		// 	pusher.moveVelocity(-PUSHER_BACK_SPEED);
-		// }
-		// else if(liftUpButton.isPressed())
-		// {
-		// 	twoBar.moveVelocity(-100);
-		// }
-		// else if(liftDownButton.isPressed())
-		// {
-		// 	liftController->setTarget(0);
-		// }
-		// else if(upHeight.changedToPressed() && goalHeight < NUM_HEIGHTS - 1)
-		// {
-		// 	goalHeight++;
-		// 	liftController->setTarget(heights[goalHeight]);
-		// 	pushController->setTarget(pushes[goalHeight]);
-		//
-		// 	if(goalHeight == 1){
-		// 		pros::delay(1300); //0 to 1
-		// 	}
-		// 	else if(goalHeight == 2){
-		// 		pros::delay(900); // 1 to 2
-		// 	}
-		// }
-		// else if (downHeight.changedToPressed() && goalHeight > 0) {
-		// 	goalHeight--;
-		// 	liftController->setTarget(heights[goalHeight]);
-		// 	pushController->setTarget(pushes[goalHeight]);
-		//
-		// 	if(goalHeight == 0){
-		// 		pros::delay(1300); // 1 to 0
-		// 	}
-		// 	else if(goalHeight == 1){
-		// 		pros::delay(900); // 2 to 1
-		// 	}
-		// }
-		// else
-		// {
-		// 	pusher.moveVelocity(0);
-		// 	twoBar.moveVelocity(0);
-		// 	leftRoller.moveVelocity(0);
-		// 	rightRoller.moveVelocity(0);
-		// 	rightRoller.setBrakeMode(AbstractMotor::brakeMode::hold);
-		// 	leftRoller.setBrakeMode(AbstractMotor::brakeMode::hold);
-		// 	twoBar.setBrakeMode(AbstractMotor::brakeMode::hold);
-		// 	pusher.setBrakeMode(AbstractMotor::brakeMode::hold);
-		// }
-
+		pusherControl();
+		rollerControl();
+		twoBarControl();
+		updateTempWarning();
+		goSlow();
 
 		pros::delay(20);
 	}
