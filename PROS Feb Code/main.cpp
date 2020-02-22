@@ -35,7 +35,8 @@ ControllerButton slowBackButton(ControllerDigital::right);
 ControllerButton slowForwardButton(ControllerDigital::left);
 ControllerButton upLift(ControllerDigital::X);
 ControllerButton downLift(ControllerDigital::B);
-ControllerButton runAutoButton(ControllerDigital::A);
+ControllerButton runAutoButton(ControllerDigital::Y);
+ControllerButton stackButton(ControllerDigital::A);
 ControllerButton liftUpButton(ControllerDigital::L1);
 ControllerButton liftDownButton(ControllerDigital::L2);
 ControllerButton rollOutButton(ControllerDigital::R1);
@@ -112,7 +113,7 @@ void initialize() {
 
 	medDrive->generatePath({
 	  {0_ft, 0_ft, 0_deg},  // Profile starting position, this will normally be (0, 0, 0)
-	  {3.05_ft, 0_ft, 0_deg}}, // The next point in the profile, 3 feet forward
+	  {3.35_ft, 0_ft, 0_deg}}, // The next point in the profile, 3 feet forward
 	  "OutsideForward" // Profile name
 	);
 
@@ -124,23 +125,22 @@ void initialize() {
 
 	fastDrive->generatePath({
 		{0_ft, 0_ft, 0_deg},  // Profile starting position, this will normally be (0, 0, 0)
-		{2.26_ft, 0_ft, 0_deg}}, // The next point in the profile, 3 feet forward
+		{2.56_ft, 0_ft, 0_deg}}, // The next point in the profile, 3 feet forward
 		"OutsideBack" // Profile name
 	);
-
 	fastDrive->generatePath({
 		{0_ft, 0_ft, 0_deg},  // Profile starting position, this will normally be (0, 0, 0)
 		{2.0_ft, 0_ft, 0_deg}}, // The next point in the profile, 3 feet forward
 		"Inside6ptForward" // Profile name
 	);
 
-	medDrive->generatePath({
+	fastDrive->generatePath({
 		{0_ft, 0_ft, 0_deg},  // Profile starting position, this will normally be (0, 0, 0)
 		{2.35_ft, 0_ft, 0_deg}}, // The next point in the profile, 3 feet forward
 		"Inside6ptBack" // Profile name
 	);
 
-	medDrive->generatePath({
+	fastDrive->generatePath({
 		{0_ft, 0_ft, 0_deg},  // Profile starting position, this will normally be (0, 0, 0)
 		{0.7_ft, 0_ft, 0_deg}}, // The next point in the profile, 3 feet forward
 		"Inside6ptBackLil" // Profile name
@@ -181,8 +181,8 @@ void pusherControl() {
             pusher.tarePosition();
         }
     } else if (pushForwardButton.isPressed()) {
-				rightRoller.setBrakeMode(AbstractMotor::brakeMode::coast);
-				leftRoller.setBrakeMode(AbstractMotor::brakeMode::coast);
+				rightRoller.setBrakeMode(AbstractMotor::brakeMode::brake);
+				leftRoller.setBrakeMode(AbstractMotor::brakeMode::brake);
 
         if (pusher.getPosition() < 1450) {
             pusher.moveVelocity(100);
@@ -245,6 +245,31 @@ void rollerControl(){
 	}
 }
 
+void stackMacro(){
+	if(stackButton.changedToPressed()){
+		while(pusher.getPosition() < 3800){
+			rightRoller.setBrakeMode(AbstractMotor::brakeMode::coast);
+			leftRoller.setBrakeMode(AbstractMotor::brakeMode::coast);
+
+			if (pusher.getPosition() < 1450) {
+					pusher.moveVelocity(100);
+			}
+			else if(pusher.getPosition() >= 3800){
+					pusher.moveVelocity(0);
+			}else {
+					int x = pusher.getPosition();
+					int vel = (int)(((0.00003121) * x * x) - (0.1935 * x) + 315.0);
+					if (vel < 20) {
+							vel = 20;
+					}
+					pusher.moveVelocity(vel);
+			}
+		}
+
+		pusher.moveVelocity(0);
+	}
+}
+
 void twoBarControl(){
 	if(liftUpButton.changedToPressed() && goalHeight < NUM_HEIGHTS - 1){
 		goalHeight++;
@@ -264,16 +289,6 @@ void twoBarControl(){
 		pushController->setTarget(pushes[goalHeight]);
 	}
 
-	if(upLift.isPressed()){
-		twoBar.moveVelocity(-100);
-	}
-	else if(downLift.isPressed()){
-		twoBar.moveVelocity(100);
-	}
-	else if(upLift.changedToReleased() || downLift.changedToReleased()){
-		twoBar.moveVelocity(0);
-		twoBar.setBrakeMode(AbstractMotor::brakeMode::hold);
-	}
 }
 
 void goSlow(){
@@ -302,7 +317,7 @@ void disabled() {}
 void gyroPid(double angle){
 
 	double threshold;
-	if(angle < 0){
+	if(angle <= 0.0){
 		threshold = 1.5;
 	}
 	else{
@@ -344,7 +359,7 @@ void deploy(){
 	pusher.setBrakeMode(AbstractMotor::brakeMode::brake);
 	rightRoller.moveVelocity(-600);
 	leftRoller.moveVelocity(-600);
-	pros::delay(2000);
+	pros::delay(1000);
 	rightRoller.moveVelocity(0);
 	leftRoller.moveVelocity(0);
 	pros::delay(200);
@@ -376,22 +391,28 @@ void updateTempWarning(){
 }
 
 void stackAndBack(){
-	rightRoller.moveVelocity(-32);
-	leftRoller.moveVelocity(-32);
-	pros::delay(800);
-	rightRoller.moveVelocity(0);
-	leftRoller.moveVelocity(0);
-	pushController->setTarget(3700);
-	pushController->waitUntilSettled();
-	rightRoller.moveVelocity(-30);
-	leftRoller.moveVelocity(-30);
-	pros::delay(500);
-	moveBack(-24, 500);
-	pushController->setTarget(0);
-	pushController->waitUntilSettled();
-	rightRoller.moveVelocity(-50);
-	leftRoller.moveVelocity(-50);
-	moveBack(20, 400);
+	while(pusher.getPosition() < 3800){
+		rightRoller.setBrakeMode(AbstractMotor::brakeMode::coast);
+		leftRoller.setBrakeMode(AbstractMotor::brakeMode::coast);
+
+		if (pusher.getPosition() < 1450) {
+				pusher.moveVelocity(100);
+		}
+		else if(pusher.getPosition() >= 3800){
+				pusher.moveVelocity(0);
+		}else {
+				int x = pusher.getPosition();
+				int vel = (int)(((0.00003121) * x * x) - (0.1935 * x) + 315.0);
+				if (vel < 20) {
+						vel = 20;
+				}
+				pusher.moveVelocity(vel);
+		}
+	}
+
+	pusher.moveVelocity(0);
+	rollerController->setTarget(-50);
+	moveBack(50,500);
 }
 
 void blueOut(){
@@ -473,7 +494,7 @@ void redIn2pt(){
 	medDrive->setTarget("InsideForward"); // go forward to cube
 	rollerController->setTarget(170); // start rolling inwards
 	medDrive->waitUntilSettled(); // wait until stopped
-	drive->turnAngle(-90_deg); // turn to right
+	drive->turnAngle(-86_deg); // turn to right
 	medDrive->setTarget("InsideRight"); // go to third cube
 	medDrive->waitUntilSettled();
 	drive->turnAngle(-47_deg); // turn to goal zone
@@ -490,7 +511,8 @@ void redIn2pt(){
 	moveBack(50, 500);
 }
 
-void redIn3pt(){
+void redIn5pt(){
+
 }
 
 void onePt(){
@@ -505,6 +527,11 @@ void onePt(){
 
 void progSkills(){
 	deploy();
+
+	pros::delay(500);
+	gyroPid(0.0);
+	pros::delay(500);
+
 	rightRoller.moveVelocity(600);
 	leftRoller.moveVelocity(600);
 	medDrive->setTarget("OutsideForward");
@@ -524,7 +551,7 @@ void progSkills(){
 
 	pros::delay(300);
 
-	gyroPid(-265.0);
+	gyroPid(-262.0);
 
 	pros::delay(300);
 
@@ -543,15 +570,19 @@ void progSkills(){
 	liftController->setTarget(-2100);
 	pushController->setTarget(1650);
 
-	pros::delay(600);
+	pros::delay(1200);
 
-	rightRoller.moveVelocity(-100);
-	leftRoller.moveVelocity(-100);
+	moveBack(-30, 900);
+
+	rightRoller.moveVelocity(-30);
+	leftRoller.moveVelocity(-30);
+
+	pros::delay(2000);
 
 }
 
 void autonomous() {
-	progSkills();
+	redIn2pt();
 }
 
 void opcontrol() {
@@ -561,17 +592,16 @@ void opcontrol() {
 		drive->getModel()->arcade(0.9 * controller.getAnalog(ControllerAnalog::leftY),
 		0.75 * controller.getAnalog(ControllerAnalog::rightX));
 
-		if(runAutoButton.changedToPressed()){
-			autonomous();
-		}
-
-		controller.setText(1, 1, std::to_string(imu_sensor.get_rotation()));
-
 		pusherControl();
 		rollerControl();
 		twoBarControl();
 		updateTempWarning();
+		stackMacro();
 		goSlow();
+
+		if(runAutoButton.changedToPressed()){
+			autonomous();
+		}
 
 		pros::delay(20);
 	}
