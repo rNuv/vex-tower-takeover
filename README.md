@@ -1,4 +1,4 @@
-# VEX-Tower-Takeover
+# VEX Tower Takeover
 My 2019-2020 VEX Robotics season saw more experience with more advanced code techniques and methodologies than that of previous years. The code in this repo shows off the programming that went into our robot for Tower Takeover. We switched to PROS this year (instead of the traditional VEXCode) and made use of the Okapilib to (hopefully) transition to a smoother and more accurate autonomous routine. With techniques such as motion profiling and odometry, our robot began to win more auton points and make our way into semifinals at States. 
 
 The descriptions below outline some fancy features I did to make our bot perform better. 
