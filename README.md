@@ -10,7 +10,7 @@ Some fancy features I implemented to make our bot perform better...
 The OkapiLib has functionality for 2D Motion Profiling. Essentially, you can imagine the VEX field as a 2D coordinate plane and tell your bot to move to certain coordinates, and the methods will automatically calculate the motions neccessary to get there. It also allows for curvilinear motion, which is the coolest thing I've ever seen.
 
 <div align="center">
-  <img src="images/motionprof.png" width="700" height="383">
+  <img src="images/motionprof.png" width="700" height="450">
 </div>
 
 ## LVGL Library
@@ -18,8 +18,7 @@ The OkapiLib has functionality for 2D Motion Profiling. Essentially, you can ima
 To prevent having to reupload auton code for different sides of the field, I made a auton selector with the Little vGL library. This way, drive team can just select the auton they want right before the match starts. Plus, it looks so sick..
 
 <div align="center">
-  <img src="images/lvlgcode.png" width="700" height="383">
-  <img src="images/autonselector.png" width="700" height="383">
+  <img src="images/lvlgcode.png" width="700" height="450">
 </div>
 
 ## V5 Inertial Sensor and PID
@@ -27,7 +26,7 @@ To prevent having to reupload auton code for different sides of the field, I mad
 We somehow got to mess with the new V5 Inertial Sensor. With its crazy accuracy, our turning angles became monumentally precise. To complement the sensor, I made a PID (proportional, intergral, and derivative) controller to make turning astronomically consistent. In a nutshell, the bot calculates the angle left to turn as it turns (known as the error) and slows changes its speed proporional to that angle, so it slows down as it reaches its target. 
 
 <div align="center">
-  <img src="images/gyropid.png" width="700" height="383">
+  <img src="images/gyropid.png" width="700" height="450">
 </div>
 
 ## Parabolic Stacking
@@ -35,7 +34,7 @@ We somehow got to mess with the new V5 Inertial Sensor. With its crazy accuracy,
 Stacking was a huge part of this game. Going too fast could knock down the cubes and going too slow was just took too much time. I made the pusher motor move as a function of the motor's encoder position so that it follows parabolic behavior. Essentially, it slows down as it goes forward, getting the best of both worlds.
 
 <div align="center">
-  <img src="images/parabolic.png" width="700" height="383">
+  <img src="images/parabolic.png" width="700" height="450">
 </div>
 
 ## Technologies
