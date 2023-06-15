@@ -18,7 +18,7 @@ The OkapiLib has functionality for 2D Motion Profiling. Essentially, you can ima
 To prevent having to reupload auton code for different sides of the field, I made a auton selector with the Little vGL library. This way, drive team can just select the auton they want right before the match starts. Plus, it looks so sick..
 
 <div align="center">
-  <img src="images/lvlgcode.png" width="700" height="450">
+  <img src="images/lvlgcode.png">
 </div>
 
 ## V5 Inertial Sensor and PID
