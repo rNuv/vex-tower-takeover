@@ -42,3 +42,6 @@ Stacking was a huge part of this game. Going too fast could knock down the cubes
 - Pros CLI (https://pros.cs.purdue.edu)
 - VEX Tower Takeover (https://vrc-kb.recf.org/hc/en-us/articles/9660927408407-VRC-History-2019-2020-Tower-Takeover)
 - PID Controller (https://en.wikipedia.org/wiki/PID_controller)
+
+---
+*Made with <3 by Arnav, circa 2019*
